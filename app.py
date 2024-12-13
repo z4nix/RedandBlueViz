@@ -1,97 +1,73 @@
 import streamlit as st
+import arxiv
 import os
 from pathlib import Path
 from datetime import datetime
-from bs4 import BeautifulSoup
-import re
+import requests
 
 def setup_directories():
-    """Create directories for storing HTML papers"""
+    """Create directories for storing papers"""
     Path("papers_storage/red_teaming").mkdir(parents=True, exist_ok=True)
     Path("papers_storage/blue_teaming").mkdir(parents=True, exist_ok=True)
 
-def extract_metadata_from_html(html_content):
-    """Extract metadata from HTML paper"""
+def extract_arxiv_id(url):
+    """Extract arXiv ID from URL"""
+    # Handle different arXiv URL formats
+    if 'arxiv.org/abs/' in url:
+        return url.split('arxiv.org/abs/')[-1].split('v')[0].strip()
+    elif 'arxiv.org/pdf/' in url:
+        return url.split('arxiv.org/pdf/')[-1].split('v')[0].strip().replace('.pdf', '')
+    return url.strip()  # Assume it's just the ID
+
+def get_paper_metadata(arxiv_url):
+    """Get paper metadata from arXiv"""
     try:
-        soup = BeautifulSoup(html_content, 'html.parser')
-        metadata = {}
-
-        # Try to find title (usually in h1 or title)
-        title = soup.find('h1')
-        if not title:
-            title = soup.find('title')
-        if title:
-            metadata['title'] = title.text.strip()
-
-        # Try to find authors (usually in a byline or author section)
-        authors = soup.find(class_=re.compile(r'author|byline', re.I))
-        if authors:
-            metadata['authors'] = authors.text.strip()
-
-        # Try to find abstract
-        abstract = soup.find(class_=re.compile(r'abstract|summary', re.I))
-        if abstract:
-            metadata['abstract'] = abstract.text.strip()
-
-        # Try to find year
-        year_pattern = r'\b(19|20)\d{2}\b'
-        text = soup.get_text()
-        years = re.findall(year_pattern, text)
-        if years:
-            metadata['year'] = int(years[0])
-        else:
-            metadata['year'] = datetime.now().year
-
-        return metadata
+        arxiv_id = extract_arxiv_id(arxiv_url)
+        search = arxiv.Search(id_list=[arxiv_id])
+        paper = next(search.results())
+        
+        return {
+            'title': paper.title,
+            'authors': ', '.join(author.name for author in paper.authors),
+            'abstract': paper.summary,
+            'year': paper.published.year,
+            'pdf_url': paper.pdf_url,
+            'arxiv_id': arxiv_id,
+            'categories': paper.categories
+        }
     except Exception as e:
-        st.error(f"Error extracting metadata: {str(e)}")
-        return {}
-
-def get_stored_papers():
-    """Get list of stored HTML papers by category"""
-    papers = {
-        "red_teaming": [],
-        "blue_teaming": []
-    }
-    
-    for category in papers:
-        path = f"papers_storage/{category}"
-        if os.path.exists(path):
-            papers[category] = [f for f in os.listdir(path) if f.endswith('.html')]
-    
-    return papers
-
-def save_uploaded_html(uploaded_file, category):
-    """Save uploaded HTML file and extract metadata"""
-    if uploaded_file is None:
+        st.error(f"Error fetching paper metadata: {str(e)}")
         return None
-    
-    # Read content and extract metadata
-    content = uploaded_file.read().decode('utf-8')
-    metadata = extract_metadata_from_html(content)
-    
-    # Create filename with timestamp
-    filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uploaded_file.name}"
-    save_path = f"papers_storage/{category}/{filename}"
-    
-    # Save the file
-    with open(save_path, "w", encoding='utf-8') as f:
-        f.write(content)
-    
-    return filename, metadata
+
+def download_pdf(pdf_url, category, arxiv_id):
+    """Download PDF from arXiv"""
+    try:
+        response = requests.get(pdf_url)
+        response.raise_for_status()
+        
+        filename = f"{arxiv_id}.pdf"
+        save_path = f"papers_storage/{category}/{filename}"
+        
+        with open(save_path, "wb") as f:
+            f.write(response.content)
+        
+        return filename
+    except Exception as e:
+        st.error(f"Error downloading PDF: {str(e)}")
+        return None
 
 def create_streamlit_app():
     setup_directories()
-    st.set_page_config(page_title="AI Security Papers", layout="wide")
+    st.set_page_config(page_title="arXiv Paper Organizer", layout="wide")
     
-    st.title("AI Security Papers")
+    st.title("arXiv Paper Organizer")
     
     # Create tabs
-    tabs = st.tabs(["Upload Papers", "View Papers"])
+    tabs = st.tabs(["Add Papers", "View Collection"])
     
-    # Upload tab
+    # Add Papers tab
     with tabs[0]:
-        st.header("Upload HTML Papers")
+        st.header("Add Paper from arXiv")
         
         category = st.selectbox(
             "Select Category",
@@ -99,78 +75,74 @@ def create_streamlit_app():
             format_func=lambda x: "Red Teaming" if x == "red_teaming" else "Blue Teaming"
         )
         
-        uploaded_file = st.file_uploader(
-            "Upload HTML paper",
-            type="html",
-            accept_multiple_files=False
-        )
+        arxiv_url = st.text_input("Enter arXiv URL or ID")
         
-        if uploaded_file:
-            filename, metadata = save_uploaded_html(uploaded_file, category)
+        if arxiv_url:
+            metadata = get_paper_metadata(arxiv_url)
             if metadata:
-                st.success("Paper uploaded successfully!")
-                st.write("Extracted metadata:")
-                st.json(metadata)
-            else:
-                st.warning("Uploaded successfully, but couldn't extract metadata.")
+                st.success("Paper metadata retrieved successfully!")
+                
+                # Show metadata
+                st.subheader("Paper Details")
+                st.write("**Title:**", metadata['title'])
+                st.write("**Authors:**", metadata['authors'])
+                st.write("**Year:**", metadata['year'])
+                with st.expander("Abstract"):
+                    st.write(metadata['abstract'])
+                st.write("**arXiv Categories:**", ', '.join(metadata['categories']))
+                
+                # Download button
+                if st.button("Add to Collection"):
+                    with st.spinner("Downloading PDF..."):
+                        filename = download_pdf(metadata['pdf_url'], category, metadata['arxiv_id'])
+                        if filename:
+                            # Save metadata alongside PDF
+                            metadata_path = f"papers_storage/{category}/{metadata['arxiv_id']}_metadata.json"
+                            import json
+                            with open(metadata_path, 'w') as f:
+                                json.dump(metadata, f, indent=2)
+                            st.success(f"Paper added to {category.replace('_', ' ')} collection!")
     
-    # View tab
+    # View Collection tab
     with tabs[1]:
-        st.header("View Papers")
+        st.header("Paper Collection")
         
-        papers = get_stored_papers()
-        
+        # Display papers by category
         col1, col2 = st.columns(2)
         
-        with col1:
-            st.subheader("Red Teaming Papers")
-            for idx, paper in enumerate(papers["red_teaming"]):
-                with st.expander(paper):
-                    paper_path = f"papers_storage/red_teaming/{paper}"
-                    with open(paper_path, "r", encoding='utf-8') as f:
-                        content = f.read()
-                        metadata = extract_metadata_from_html(content)
-                        if metadata:
-                            st.write("Title:", metadata.get('title', 'N/A'))
-                            st.write("Authors:", metadata.get('authors', 'N/A'))
-                            st.write("Year:", metadata.get('year', 'N/A'))
-                            if 'abstract' in metadata:
-                                with st.expander("Abstract"):
-                                    st.write(metadata['abstract'])
+        def display_papers(category, column):
+            with column:
+                st.subheader(category.replace('_', ' ').title())
+                papers_path = f"papers_storage/{category}"
+                metadata_files = [f for f in os.listdir(papers_path) if f.endswith('_metadata.json')]
+                
+                for metadata_file in metadata_files:
+                    with open(os.path.join(papers_path, metadata_file)) as f:
+                        metadata = json.load(f)
+                    
+                    with st.expander(metadata['title']):
+                        st.write("**Authors:**", metadata['authors'])
+                        st.write("**Year:**", metadata['year'])
+                        with st.expander("Abstract"):
+                            st.write(metadata['abstract'])
                         
-                        # View HTML button
-                        st.download_button(
-                            label="Download HTML",
-                            data=content,
-                            file_name=paper,
-                            mime="text/html",
-                            key=f"red_teaming_{idx}"
-                        )
+                        # PDF download button
+                        pdf_path = os.path.join(papers_path, f"{metadata['arxiv_id']}.pdf")
+                        if os.path.exists(pdf_path):
+                            with open(pdf_path, 'rb') as pdf_file:
+                                st.download_button(
+                                    label="Download PDF",
+                                    data=pdf_file,
+                                    file_name=f"{metadata['arxiv_id']}.pdf",
+                                    mime="application/pdf",
+                                    key=f"{category}_{metadata['arxiv_id']}"
+                                )
+                        
+                        # Link to arXiv
+                        st.markdown(f"[View on arXiv](https://arxiv.org/abs/{metadata['arxiv_id']})")
         
-        with col2:
-            st.subheader("Blue Teaming Papers")
-            for idx, paper in enumerate(papers["blue_teaming"]):
-                with st.expander(paper):
-                    paper_path = f"papers_storage/blue_teaming/{paper}"
-                    with open(paper_path, "r", encoding='utf-8') as f:
-                        content = f.read()
-                        metadata = extract_metadata_from_html(content)
-                        if metadata:
-                            st.write("Title:", metadata.get('title', 'N/A'))
-                            st.write("Authors:", metadata.get('authors', 'N/A'))
-                            st.write("Year:", metadata.get('year', 'N/A'))
-                            if 'abstract' in metadata:
-                                with st.expander("Abstract"):
-                                    st.write(metadata['abstract'])
-                        
-                        # View HTML button
-                        st.download_button(
-                            label="Download HTML",
-                            data=content,
-                            file_name=paper,
-                            mime="text/html",
-                            key=f"blue_teaming_{idx}"
-                        )
+        display_papers("red_teaming", col1)
+        display_papers("blue_teaming", col2)
 
 if __name__ == "__main__":
     create_streamlit_app()
