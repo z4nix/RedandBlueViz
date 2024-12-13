@@ -149,29 +149,27 @@ def create_streamlit_app():
                     with open(os.path.join(papers_path, metadata_file)) as f:
                         metadata = json.load(f)
                     
-                    with st.expander(metadata['title']):
+                    with st.expander(f"📄 {metadata['title']}"):
                         st.write("**Authors:**", metadata['authors'])
                         st.write("**Year:**", metadata['year'])
-                        with st.expander("Abstract"):
-                            st.write(metadata['abstract'])
+                        st.write("**Abstract:**")
+                        st.write(metadata['abstract'])
                         
+                        st.markdown("---")
                         col1, col2 = st.columns(2)
                         with col1:
                             pdf_path = os.path.join(papers_path, f"{metadata['arxiv_id']}.pdf")
                             if os.path.exists(pdf_path):
                                 with open(pdf_path, 'rb') as pdf_file:
                                     st.download_button(
-                                        label="Download PDF",
+                                        label="📥 Download PDF",
                                         data=pdf_file,
                                         file_name=f"{metadata['arxiv_id']}.pdf",
                                         mime="application/pdf",
                                         key=f"{category}_{metadata['arxiv_id']}"
                                     )
                         with col2:
-                            st.markdown(f"[View on arXiv](https://arxiv.org/abs/{metadata['arxiv_id']})")
-        
-        display_papers("red_teaming", col1)
-        display_papers("blue_teaming", col2)
+                            st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{metadata['arxiv_id']})")
 
 if __name__ == "__main__":
     create_streamlit_app()
