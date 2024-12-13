@@ -216,3 +216,10 @@ with add_tab:
                             json.dump(metadata, f, indent=2)
                         st.success(f"Paper added to {category.replace('_', ' ')} collection!")
                         st.rerun()
+
+st.markdown("""
+---
+<div style='text-align: center; color: #666; padding: 20px;'>
+    a "gimmick" by Davide Zani for DAISR 2025 
+</div>
+""", unsafe_allow_html=True)
