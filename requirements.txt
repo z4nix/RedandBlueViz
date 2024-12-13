@@ -4,3 +4,4 @@ pdfplumber
 spacy
 pandas
 pathlib
+bs4
