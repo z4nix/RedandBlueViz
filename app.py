@@ -132,13 +132,15 @@ with tab1:
                         st.success(f"Paper added to {category.replace('_', ' ')} collection!")
                         st.rerun()
 
+# Replace the display code in tab2 with this:
 with tab2:
     st.header("Paper Collection")
     
-    col1, col2 = st.columns(2)
+    # Create two columns for the categories
+    left_col, right_col = st.columns(2)
     
     # Red Teaming Papers
-    with col1:
+    with left_col:
         st.subheader("Red Teaming Papers")
         red_papers = list_papers("red_teaming")
         if not red_papers:
@@ -150,25 +152,24 @@ with tab2:
                     st.write("**Year:**", paper['year'])
                     st.write("**Abstract:**")
                     st.write(paper['abstract'])
+                    st.markdown("---")
                     
-                    # Buttons row
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        pdf_path = f"papers_storage/red_teaming/{paper['arxiv_id']}.pdf"
-                        if os.path.exists(pdf_path):
-                            with open(pdf_path, 'rb') as pdf_file:
-                                st.download_button(
-                                    "📥 Download PDF",
-                                    pdf_file,
-                                    file_name=f"{paper['arxiv_id']}.pdf",
-                                    mime="application/pdf",
-                                    key=f"red_{paper['arxiv_id']}"
-                                )
-                    with col2:
-                        st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{paper['arxiv_id']})")
+                    # Create a single row for buttons using HTML/markdown
+                    pdf_path = f"papers_storage/red_teaming/{paper['arxiv_id']}.pdf"
+                    if os.path.exists(pdf_path):
+                        with open(pdf_path, 'rb') as pdf_file:
+                            st.download_button(
+                                "📥 Download PDF",
+                                pdf_file,
+                                file_name=f"{paper['arxiv_id']}.pdf",
+                                mime="application/pdf",
+                                key=f"red_{paper['arxiv_id']}"
+                            )
+                    
+                    st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{paper['arxiv_id']})")
     
     # Blue Teaming Papers
-    with col2:
+    with right_col:
         st.subheader("Blue Teaming Papers")
         blue_papers = list_papers("blue_teaming")
         if not blue_papers:
@@ -180,19 +181,18 @@ with tab2:
                     st.write("**Year:**", paper['year'])
                     st.write("**Abstract:**")
                     st.write(paper['abstract'])
+                    st.markdown("---")
                     
-                    # Buttons row
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        pdf_path = f"papers_storage/blue_teaming/{paper['arxiv_id']}.pdf"
-                        if os.path.exists(pdf_path):
-                            with open(pdf_path, 'rb') as pdf_file:
-                                st.download_button(
-                                    "📥 Download PDF",
-                                    pdf_file,
-                                    file_name=f"{paper['arxiv_id']}.pdf",
-                                    mime="application/pdf",
-                                    key=f"blue_{paper['arxiv_id']}"
-                                )
-                    with col2:
-                        st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{paper['arxiv_id']})")
+                    # Create a single row for buttons using HTML/markdown
+                    pdf_path = f"papers_storage/blue_teaming/{paper['arxiv_id']}.pdf"
+                    if os.path.exists(pdf_path):
+                        with open(pdf_path, 'rb') as pdf_file:
+                            st.download_button(
+                                "📥 Download PDF",
+                                pdf_file,
+                                file_name=f"{paper['arxiv_id']}.pdf",
+                                mime="application/pdf",
+                                key=f"blue_{paper['arxiv_id']}"
+                            )
+                    
+                    st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{paper['arxiv_id']})")
