@@ -76,7 +76,7 @@ def create_streamlit_app():
         
         with col1:
             st.subheader("Red Teaming Papers")
-            for pdf in pdfs["red_teaming"]:
+            for idx, pdf in enumerate(pdfs["red_teaming"]):
                 with st.expander(pdf):
                     pdf_path = f"papers_storage/red_teaming/{pdf}"
                     with open(pdf_path, "rb") as f:
@@ -84,12 +84,13 @@ def create_streamlit_app():
                             label="Download PDF",
                             data=f.read(),
                             file_name=pdf,
-                            mime="application/pdf"
+                            mime="application/pdf",
+                            key=f"red_teaming_{idx}"  # Added unique key
                         )
         
         with col2:
             st.subheader("Blue Teaming Papers")
-            for pdf in pdfs["blue_teaming"]:
+            for idx, pdf in enumerate(pdfs["blue_teaming"]):
                 with st.expander(pdf):
                     pdf_path = f"papers_storage/blue_teaming/{pdf}"
                     with open(pdf_path, "rb") as f:
@@ -97,7 +98,8 @@ def create_streamlit_app():
                             label="Download PDF",
                             data=f.read(),
                             file_name=pdf,
-                            mime="application/pdf"
+                            mime="application/pdf",
+                            key=f"blue_teaming_{idx}"  # Added unique key
                         )
 
 if __name__ == "__main__":
