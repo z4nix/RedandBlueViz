@@ -87,10 +87,10 @@ def list_papers(category):
     
     return sorted(papers, key=lambda x: x['year'], reverse=True)
 
-st.set_page_config(page_title="arXiv Paper Organizer", layout="wide")
+st.set_page_config(page_title="Red/Blue Teaming Paper Collection", layout="wide")
 setup_directories()
 
-st.title("arXiv Paper Organizer")
+st.title("Red/Blue Teaming Paper Collection")
 
 tab1, tab2 = st.tabs(["📥 Add Papers", "📚 View Collection"])
 
