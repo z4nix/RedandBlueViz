@@ -135,41 +135,54 @@ def create_streamlit_app():
                 st.subheader(category.replace('_', ' ').title())
                 papers_path = f"papers_storage/{category}"
                 
+                # Debug: Check if directory exists
+                st.write(f"Checking directory: {papers_path}")
                 if not os.path.exists(papers_path):
-                    st.info(f"No papers in {category.replace('_', ' ')} collection yet.")
+                    st.warning(f"Directory not found: {papers_path}")
                     return
                 
-                metadata_files = [f for f in os.listdir(papers_path) if f.endswith('_metadata.json')]
+                # Debug: List all files in directory
+                all_files = os.listdir(papers_path)
+                st.write("Files in directory:", all_files)
+                
+                metadata_files = [f for f in all_files if f.endswith('_metadata.json')]
+                st.write("Metadata files found:", metadata_files)
                 
                 if not metadata_files:
                     st.info(f"No papers in {category.replace('_', ' ')} collection yet.")
                     return
                 
                 for metadata_file in sorted(metadata_files, reverse=True):
-                    with open(os.path.join(papers_path, metadata_file)) as f:
-                        metadata = json.load(f)
-                    
-                    with st.expander(f"📄 {metadata['title']}"):
-                        st.write("**Authors:**", metadata['authors'])
-                        st.write("**Year:**", metadata['year'])
-                        st.write("**Abstract:**")
-                        st.write(metadata['abstract'])
+                    try:
+                        with open(os.path.join(papers_path, metadata_file)) as f:
+                            metadata = json.load(f)
+                            st.write("Successfully loaded metadata:", metadata_file)
                         
-                        st.markdown("---")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            pdf_path = os.path.join(papers_path, f"{metadata['arxiv_id']}.pdf")
-                            if os.path.exists(pdf_path):
-                                with open(pdf_path, 'rb') as pdf_file:
-                                    st.download_button(
-                                        label="📥 Download PDF",
-                                        data=pdf_file,
-                                        file_name=f"{metadata['arxiv_id']}.pdf",
-                                        mime="application/pdf",
-                                        key=f"{category}_{metadata['arxiv_id']}"
-                                    )
-                        with col2:
-                            st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{metadata['arxiv_id']})")
+                        with st.expander(f"📄 {metadata['title']}"):
+                            st.write("**Authors:**", metadata['authors'])
+                            st.write("**Year:**", metadata['year'])
+                            st.write("**Abstract:**")
+                            st.write(metadata['abstract'])
+                            
+                            st.markdown("---")
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                pdf_path = os.path.join(papers_path, f"{metadata['arxiv_id']}.pdf")
+                                if os.path.exists(pdf_path):
+                                    with open(pdf_path, 'rb') as pdf_file:
+                                        st.download_button(
+                                            label="📥 Download PDF",
+                                            data=pdf_file,
+                                            file_name=f"{metadata['arxiv_id']}.pdf",
+                                            mime="application/pdf",
+                                            key=f"{category}_{metadata['arxiv_id']}"
+                                        )
+                                else:
+                                    st.warning(f"PDF file not found: {pdf_path}")
+                            with col2:
+                                st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{metadata['arxiv_id']})")
+                    except Exception as e:
+                        st.error(f"Error loading {metadata_file}: {str(e)}")
 
 if __name__ == "__main__":
     create_streamlit_app()
