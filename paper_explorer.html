@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Paper Explorer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <!-- React and ReactDOM -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+        // The papers data will be injected here by Python
+        const papers = {
+            redTeaming: [],
+            blueTeaming: []
+        };
+
+        const PaperCard = ({ paper, type }) => {
+            const [expanded, setExpanded] = useState(false);
+            const baseColor = type === 'red' ? 'bg-red-50' : 'bg-blue-50';
+            const hoverColor = type === 'red' ? 'hover:bg-red-100' : 'hover:bg-blue-100';
+            const borderColor = type === 'red' ? 'border-red-200' : 'border-blue-200';
+            const textColor = type === 'red' ? 'text-red-800' : 'text-blue-800';
+
+            return (
+                <div 
+                    className={`p-4 rounded-lg border ${baseColor} ${hoverColor} ${borderColor} transition-all mb-4`}
+                >
+                    <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <h3 className={`font-bold ${textColor}`}>{paper.title}</h3>
+                                {paper.pdf_filename && (
+                                    <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                                        PDF
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-sm text-gray-600">{paper.authors} ({paper.year})</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">{paper.citations} citations</span>
+                            <div 
+                                className={`w-2 h-2 rounded-full ${
+                                    paper.impact >= 85 ? 'bg-green-500' : 
+                                    paper.impact >= 70 ? 'bg-yellow-500' : 'bg-gray-500'
+                                }`}
+                                title={`Impact: ${paper.impact}%`}
+                            />
+                        </div>
+                    </div>
+                    
+                    <button
+                        onClick={() => setExpanded(!expanded)}
+                        className="text-blue-600 mt-2 flex items-center gap-1"
+                    >
+                        {expanded ? (
+                            <>Hide details <ChevronUp className="w-4 h-4" /></>
+                        ) : (
+                            <>Show details <ChevronDown className="w-4 h-4" /></>
+                        )}
+                    </button>
+
+                    {expanded && (
+                        <div className="mt-2 space-y-2">
+                            <p className="text-sm text-gray-700">{paper.abstract}</p>
+                            
+                            {paper.keywords && paper.keywords.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {paper.keywords.map((keyword, kidx) => (
+                                        <span key={kidx} className="px-2 py-1 text-xs bg-gray-100 rounded">
+                                            {keyword}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                            
+                            <div className="flex flex-wrap gap-4 text-sm">
+                                {paper.dateAdded && (
+                                    <span className="text-gray-600">
+                                        Added: {paper.dateAdded}
+                                    </span>
+                                )}
+                                {paper.doi && (
+                                    <a 
+                                        href={`https://doi.org/${paper.doi}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline flex items-center gap-1"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        DOI
+                                    </a>
+                                )}
+                                {paper.url && (
+                                    <a 
+                                        href={paper.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline flex items-center gap-1"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        Paper Link
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const PaperSection = ({ title, papers, type, icon: Icon, searchTerm }) => {
+            const filteredPapers = papers.filter(paper => 
+                paper.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                paper.abstract.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (paper.keywords && paper.keywords.some(k => k.toLowerCase().includes(searchTerm.toLowerCase())))
+            );
+
+            const headerColor = type === 'red' ? 'text-red-700' : 'text-blue-700';
+            const bgColor = type === 'red' ? 'bg-red-50' : 'bg-blue-50';
+
+            return (
+                <div className="w-1/2 p-4">
+                    <div className={`flex items-center gap-2 mb-4 ${headerColor}`}>
+                        <Icon className="w-6 h-6" />
+                        <h2 className="text-xl font-bold">{title}</h2>
+                        <span className="text-sm">({filteredPapers.length} papers)</span>
+                    </div>
+                    <div className={`${bgColor} p-4 rounded-lg min-h-[calc(100vh-200px)] h-full overflow-y-auto`}>
+                        {filteredPapers.map((paper, index) => (
+                            <PaperCard key={index} paper={paper} type={type} />
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const DualPaperExplorer = () => {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [sortBy, setSortBy] = useState('year');
+
+            return (
+                <div className="min-h-screen bg-gray-100">
+                    <div className="max-w-7xl mx-auto py-6">
+                        <div className="bg-white p-4 rounded-lg shadow mb-6">
+                            <div className="flex items-center gap-4">
+                                <div className="flex-1 flex items-center gap-2">
+                                    <Search className="w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search papers across both categories..."
+                                        className="w-full p-2 border rounded"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                                <button 
+                                    className="flex items-center gap-2 px-4 py-2 border rounded hover:bg-gray-50"
+                                    onClick={() => setSortBy(sortBy === 'year' ? 'citations' : 'year')}
+                                >
+                                    <ArrowUpDown className="w-4 h-4" />
+                                    Sort by {sortBy === 'year' ? 'Citations' : 'Year'}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-6">
+                            <PaperSection 
+                                title="Red Teaming Papers" 
+                                papers={papers.redTeaming} 
+                                type="red" 
+                                icon={Swords}
+                                searchTerm={searchTerm}
+                            />
+                            <PaperSection 
+                                title="Blue Teaming Papers" 
+                                papers={papers.blueTeaming} 
+                                type="blue" 
+                                icon={Shield}
+                                searchTerm={searchTerm}
+                            />
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the component
+        ReactDOM.render(
+            React.createElement(DualPaperExplorer),
+            document.getElementById('root')
+        );
+    </script>
+</body>
+</html>
