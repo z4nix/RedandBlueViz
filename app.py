@@ -13,23 +13,19 @@ def setup_directories():
 
 def extract_arxiv_id(url):
     """Extract arXiv ID from URL with better cleaning"""
-    # Remove any whitespace
     url = url.strip()
     
-    # Handle full URLs
     if 'arxiv.org/abs/' in url:
         id_part = url.split('arxiv.org/abs/')[-1]
     elif 'arxiv.org/pdf/' in url:
         id_part = url.split('arxiv.org/pdf/')[-1].replace('.pdf', '')
     else:
-        # Assume it's just the ID
         id_part = url
     
-    # Clean the ID
-    id_part = id_part.split('v')[0]  # Remove version number if present
+    id_part = id_part.split('v')[0]  # Remove version number
     id_part = id_part.strip('/')     # Remove trailing slashes
-    id_part = id_part.split('#')[0]  # Remove any anchors
-    id_part = id_part.split('?')[0]  # Remove any query parameters
+    id_part = id_part.split('#')[0]  # Remove anchors
+    id_part = id_part.split('?')[0]  # Remove query parameters
     
     return id_part.strip()
 
@@ -38,15 +34,17 @@ def get_paper_metadata(arxiv_url):
     try:
         arxiv_id = extract_arxiv_id(arxiv_url)
         
-        # Validate arxiv ID format
         if not arxiv_id:
             raise ValueError("Could not extract valid arXiv ID")
         
-        st.write(f"Fetching metadata for arXiv ID: {arxiv_id}")  # Debug info
+        st.write(f"Fetching metadata for arXiv ID: {arxiv_id}")
         
-        client = arxiv.Client()
+        # Fixed: Using proper iteration for search results
         search = arxiv.Search(id_list=[arxiv_id])
-        paper = client.results(search).next()
+        results = list(search.results())  # Convert iterator to list
+        if not results:
+            raise ValueError("No paper found with this ID")
+        paper = results[0]  # Get first result
         
         return {
             'title': paper.title,
@@ -57,9 +55,6 @@ def get_paper_metadata(arxiv_url):
             'arxiv_id': arxiv_id,
             'categories': paper.categories
         }
-    except StopIteration:
-        st.error("Paper not found. Please check the arXiv ID/URL.")
-        return None
     except Exception as e:
         st.error(f"Error fetching paper metadata: {str(e)}")
         return None
@@ -87,14 +82,12 @@ def create_streamlit_app():
     
     st.title("arXiv Paper Organizer")
     
-    # Create tabs
     tabs = st.tabs(["Add Papers", "View Collection"])
     
     # Add Papers tab
     with tabs[0]:
         st.header("Add Paper from arXiv")
         
-        # Help text
         st.markdown("""
         Enter an arXiv URL (e.g., https://arxiv.org/abs/2202.12467) or just the ID (e.g., 2202.12467).
         """)
@@ -126,7 +119,6 @@ def create_streamlit_app():
                     with st.spinner("Downloading PDF..."):
                         filename = download_pdf(metadata['pdf_url'], category, metadata['arxiv_id'])
                         if filename:
-                            # Save metadata alongside PDF
                             metadata_path = f"papers_storage/{category}/{metadata['arxiv_id']}_metadata.json"
                             with open(metadata_path, 'w') as f:
                                 json.dump(metadata, f, indent=2)
@@ -136,7 +128,6 @@ def create_streamlit_app():
     with tabs[1]:
         st.header("Paper Collection")
         
-        # Display papers by category
         col1, col2 = st.columns(2)
         
         def display_papers(category, column):
@@ -154,7 +145,7 @@ def create_streamlit_app():
                     st.info(f"No papers in {category.replace('_', ' ')} collection yet.")
                     return
                 
-                for metadata_file in sorted(metadata_files, reverse=True):  # Show newest first
+                for metadata_file in sorted(metadata_files, reverse=True):
                     with open(os.path.join(papers_path, metadata_file)) as f:
                         metadata = json.load(f)
                     
@@ -166,7 +157,6 @@ def create_streamlit_app():
                         
                         col1, col2 = st.columns(2)
                         with col1:
-                            # PDF download button
                             pdf_path = os.path.join(papers_path, f"{metadata['arxiv_id']}.pdf")
                             if os.path.exists(pdf_path):
                                 with open(pdf_path, 'rb') as pdf_file:
@@ -178,7 +168,6 @@ def create_streamlit_app():
                                         key=f"{category}_{metadata['arxiv_id']}"
                                     )
                         with col2:
-                            # Link to arXiv
                             st.markdown(f"[View on arXiv](https://arxiv.org/abs/{metadata['arxiv_id']})")
         
         display_papers("red_teaming", col1)
