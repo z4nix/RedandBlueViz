@@ -92,10 +92,10 @@ setup_directories()
 
 st.title("Red/Blue Teaming Paper Collection")
 
-tab1, tab2 = st.tabs(["📥 Add Papers", "📚 View Collection"])
+collection_tab, add_tab = st.tabs(["📚 View Collection", "📥 Add Papers"])
 
-with tab1:
-    st.header("Add Paper from arXiv")
+with collection_tab:
+    st.header("Paper Collection")
     
     st.markdown("""
     Enter an arXiv URL (e.g., https://arxiv.org/abs/2202.12467) or just the ID (e.g., 2202.12467).
@@ -133,8 +133,8 @@ with tab1:
                         st.rerun()
 
 
-with tab2:
-    st.header("Paper Collection")
+with add_tab:
+    st.header("Add Paper from arXiv")
     
     # Create two columns for the categories
     left_col, right_col = st.columns(2)
