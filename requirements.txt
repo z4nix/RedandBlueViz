@@ -5,3 +5,4 @@ spacy
 pandas
 pathlib
 bs4
+arxiv
