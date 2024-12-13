@@ -32,7 +32,7 @@ def extract_arxiv_id(url):
 def get_paper_metadata(_url):
     """Get paper metadata from """
     try:
-        _id = extract_arxiv_id(_url)
+        arxiv_id = extract_arxiv_id(_url)
         
         if not arxiv_id:
             raise ValueError("Could not extract valid arXiv ID")
