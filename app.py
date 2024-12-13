@@ -87,15 +87,100 @@ def list_papers(category):
     
     return sorted(papers, key=lambda x: x['year'], reverse=True)
 
-st.set_page_config(page_title="Red/Blue Teaming Paper Collection", layout="wide")
+st.set_page_config(page_title="arXiv Paper Organizer", layout="wide")
 setup_directories()
 
-st.title("Red/Blue Teaming Paper Collection")
+st.title("arXiv Paper Organizer")
 
-collection_tab, add_tab = st.tabs(["📚 View Collection", "📥 Add Papers"])
+# Create tabs with collection first
+collection_tab, add_tab = st.tabs(["📚 Collection", "📥 Add Paper"])
 
+# Collection Tab (First)
 with collection_tab:
     st.header("Paper Collection")
+    
+    # Create two columns for the categories
+    left_col, right_col = st.columns(2)
+    
+    # Red Teaming Papers
+    with left_col:
+        st.markdown("""
+        <div style='background-color: rgba(255, 99, 71, 0.1); padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #ff6347;'>
+            <h2 style='color: #ff6347; margin: 0;'>🔥 Red Teaming Papers</h2>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        red_papers = list_papers("red_teaming")
+        if not red_papers:
+            st.info("🔍 No papers in Red Teaming collection yet.")
+        else:
+            for paper in red_papers:
+                with st.expander(f"📑 {paper['title']}"):
+                    st.markdown("""
+                    <div style='background-color: rgba(255, 99, 71, 0.05); padding: 1rem; border-radius: 0.5rem;'>
+                    """, unsafe_allow_html=True)
+                    
+                    st.write("👥 **Authors:**", paper['authors'])
+                    st.write("📅 **Year:**", paper['year'])
+                    st.write("📝 **Abstract:**")
+                    st.write(paper['abstract'])
+                    st.markdown("---")
+                    
+                    pdf_path = f"papers_storage/red_teaming/{paper['arxiv_id']}.pdf"
+                    if os.path.exists(pdf_path):
+                        with open(pdf_path, 'rb') as pdf_file:
+                            st.download_button(
+                                "📥 Download PDF",
+                                pdf_file,
+                                file_name=f"{paper['arxiv_id']}.pdf",
+                                mime="application/pdf",
+                                key=f"red_{paper['arxiv_id']}"
+                            )
+                    
+                    st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{paper['arxiv_id']})")
+                    st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Blue Teaming Papers
+    with right_col:
+        st.markdown("""
+        <div style='background-color: rgba(0, 122, 255, 0.1); padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #007AFF;'>
+            <h2 style='color: #007AFF; margin: 0;'>🛡️ Blue Teaming Papers</h2>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        blue_papers = list_papers("blue_teaming")
+        if not blue_papers:
+            st.info("🔍 No papers in Blue Teaming collection yet.")
+        else:
+            for paper in blue_papers:
+                with st.expander(f"📑 {paper['title']}"):
+                    st.markdown("""
+                    <div style='background-color: rgba(0, 122, 255, 0.05); padding: 1rem; border-radius: 0.5rem;'>
+                    """, unsafe_allow_html=True)
+                    
+                    st.write("👥 **Authors:**", paper['authors'])
+                    st.write("📅 **Year:**", paper['year'])
+                    st.write("📝 **Abstract:**")
+                    st.write(paper['abstract'])
+                    st.markdown("---")
+                    
+                    pdf_path = f"papers_storage/blue_teaming/{paper['arxiv_id']}.pdf"
+                    if os.path.exists(pdf_path):
+                        with open(pdf_path, 'rb') as pdf_file:
+                            st.download_button(
+                                "📥 Download PDF",
+                                pdf_file,
+                                file_name=f"{paper['arxiv_id']}.pdf",
+                                mime="application/pdf",
+                                key=f"blue_{paper['arxiv_id']}"
+                            )
+                    
+                    st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{paper['arxiv_id']})")
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+# Add Papers Tab (Second)
+with add_tab:
+    st.header("Add Paper from arXiv")
     
     st.markdown("""
     Enter an arXiv URL (e.g., https://arxiv.org/abs/2202.12467) or just the ID (e.g., 2202.12467).
@@ -131,68 +216,3 @@ with collection_tab:
                             json.dump(metadata, f, indent=2)
                         st.success(f"Paper added to {category.replace('_', ' ')} collection!")
                         st.rerun()
-
-
-with add_tab:
-    st.header("Add Paper from arXiv")
-    
-    # Create two columns for the categories
-    left_col, right_col = st.columns(2)
-    
-    # Red Teaming Papers
-    with left_col:
-        st.subheader("Red Teaming Papers")
-        red_papers = list_papers("red_teaming")
-        if not red_papers:
-            st.info("No papers in Red Teaming collection yet.")
-        else:
-            for paper in red_papers:
-                with st.expander(f"📄 {paper['title']}"):
-                    st.write("**Authors:**", paper['authors'])
-                    st.write("**Year:**", paper['year'])
-                    st.write("**Abstract:**")
-                    st.write(paper['abstract'])
-                    st.markdown("---")
-                    
-                    # Create a single row for buttons using HTML/markdown
-                    pdf_path = f"papers_storage/red_teaming/{paper['arxiv_id']}.pdf"
-                    if os.path.exists(pdf_path):
-                        with open(pdf_path, 'rb') as pdf_file:
-                            st.download_button(
-                                "📥 Download PDF",
-                                pdf_file,
-                                file_name=f"{paper['arxiv_id']}.pdf",
-                                mime="application/pdf",
-                                key=f"red_{paper['arxiv_id']}"
-                            )
-                    
-                    st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{paper['arxiv_id']})")
-    
-    # Blue Teaming Papers
-    with right_col:
-        st.subheader("Blue Teaming Papers")
-        blue_papers = list_papers("blue_teaming")
-        if not blue_papers:
-            st.info("No papers in Blue Teaming collection yet.")
-        else:
-            for paper in blue_papers:
-                with st.expander(f"📄 {paper['title']}"):
-                    st.write("**Authors:**", paper['authors'])
-                    st.write("**Year:**", paper['year'])
-                    st.write("**Abstract:**")
-                    st.write(paper['abstract'])
-                    st.markdown("---")
-                    
-                    # Create a single row for buttons using HTML/markdown
-                    pdf_path = f"papers_storage/blue_teaming/{paper['arxiv_id']}.pdf"
-                    if os.path.exists(pdf_path):
-                        with open(pdf_path, 'rb') as pdf_file:
-                            st.download_button(
-                                "📥 Download PDF",
-                                pdf_file,
-                                file_name=f"{paper['arxiv_id']}.pdf",
-                                mime="application/pdf",
-                                key=f"blue_{paper['arxiv_id']}"
-                            )
-                    
-                    st.markdown(f"[🔗 View on arXiv](https://arxiv.org/abs/{paper['arxiv_id']})")
