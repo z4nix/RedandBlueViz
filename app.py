@@ -9,13 +9,11 @@ import pypdf
 import pdfplumber
 import re
 
-# Create directories for storing PDFs
 def setup_directories():
     Path("papers_storage/red_teaming").mkdir(parents=True, exist_ok=True)
     Path("papers_storage/blue_teaming").mkdir(parents=True, exist_ok=True)
 
 def load_papers_from_json():
-    """Load papers data from JSON file"""
     try:
         with open('papers_data.json', 'r') as f:
             return json.load(f)
@@ -23,17 +21,14 @@ def load_papers_from_json():
         return {"redTeaming": [], "blueTeaming": []}
 
 def save_papers_to_json(papers_data):
-    """Save papers data to a JSON file"""
     with open('papers_data.json', 'w') as f:
         json.dump(papers_data, f, indent=2)
 
 def get_pdf_path(category, filename):
-    """Get the path for storing a PDF file"""
     folder = "red_teaming" if category == "redTeaming" else "blue_teaming"
     return f"papers_storage/{folder}/{filename}"
 
 def save_uploaded_pdf(uploaded_file, category):
-    """Save an uploaded PDF file and return the filename"""
     if uploaded_file is None:
         return None
     
@@ -46,66 +41,87 @@ def save_uploaded_pdf(uploaded_file, category):
     return filename
 
 def extract_pdf_metadata(pdf_path):
-    """Extract metadata from a PDF file"""
+    """Improved metadata extraction focusing on essential fields"""
     try:
         metadata = {}
-        with pdfplumber.open(pdf_path) as pdf:
-            first_page = pdf.pages[0].extract_text()
-            
-            # Basic title extraction (first line)
-            lines = first_page.split('\n')
-            if lines:
-                metadata['title'] = lines[0].strip()
-            
-            # Try to find abstract
-            abstract_match = re.search(r'Abstract[:\s]+(.*?)(?=\n\n|\n[A-Z]{2,}|Introduction)', 
-                                     first_page, re.DOTALL | re.IGNORECASE)
-            if abstract_match:
-                metadata['abstract'] = abstract_match.group(1).strip()
         
-        # Get PDF metadata
-        with pypdf.PdfReader(pdf_path) as pdf:
-            pdf_info = pdf.metadata
-            if pdf_info:
-                metadata['year'] = datetime.now().year  # Default to current year
-                if '/Author' in pdf_info:
-                    metadata['authors'] = pdf_info['/Author']
+        # Extract text from first two pages
+        with pdfplumber.open(pdf_path) as pdf:
+            text = ""
+            for i in range(min(2, len(pdf.pages))):
+                text += pdf.pages[i].extract_text() + "\n"
+
+        # Try to extract title (usually the first line before any authors)
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        if lines:
+            metadata['title'] = lines[0]
+
+        # Try to extract authors (usually after title, before abstract)
+        author_lines = []
+        for line in lines[1:4]:  # Check next few lines after title
+            # Authors lines typically contain multiple names and/or affiliations
+            if ',' in line and not any(word in line.lower() for word in ['abstract', 'introduction', 'keywords']):
+                author_lines.append(line)
+        if author_lines:
+            metadata['authors'] = author_lines[0]
+
+        # Try to extract abstract
+        abstract_pattern = r'(?:abstract|summary)[\s:]+([^introduction]*?)(?:(?:introduction|\d\.|keywords|index terms)|\n\n)'
+        abstract_match = re.search(abstract_pattern, text.lower(), re.IGNORECASE | re.DOTALL)
+        if abstract_match:
+            abstract_text = abstract_match.group(1).strip()
+            # Clean up the abstract
+            abstract_text = re.sub(r'\s+', ' ', abstract_text)
+            metadata['abstract'] = abstract_text
+
+        # Try to extract year
+        year_pattern = r'\b(19|20)\d{2}\b'
+        years = re.findall(year_pattern, text)
+        if years:
+            # Take the first year found
+            metadata['year'] = int(years[0])
+        else:
+            metadata['year'] = datetime.now().year
 
         return metadata
+
     except Exception as e:
         st.error(f"Error extracting metadata: {str(e)}")
         return {}
 
 def create_streamlit_app():
     setup_directories()
-    st.set_page_config(page_title="AI Security Papers Explorer", layout="wide")
+    st.set_page_config(page_title="Red/Blue Teaming Papers Viewer", layout="wide")
     
-    st.title("AI Security Papers Explorer")
-    
-    # Initialize papers data
-    papers = load_papers_from_json()
+    st.title("Red/Blue Teaming Papers Viewer")
     
     # Create tabs
     tabs = st.tabs(["View Papers", "Add/Edit Papers", "Bulk Import"])
     
+    # Load papers
+    papers = load_papers_from_json()
+    
     # Tab 1: View Papers
     with tabs[0]:
-        # Display stats
+        # Stats
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Red Teaming Papers", len(papers["redTeaming"]))
         with col2:
             st.metric("Blue Teaming Papers", len(papers["blueTeaming"]))
         
-        # Load and display the React component
+        # Load and render the component
         with open('paper_explorer.html', 'r') as f:
             html_content = f.read()
-            
+        
+        # Inject the papers data
+        papers_json = json.dumps(papers)
         html_with_data = html_content.replace(
             'const papers = {',
-            f'const papers = {json.dumps(papers, indent=2)}'
+            f'const papers = {papers_json}'
         )
         
+        # Render the component
         components.html(html_with_data, height=800)
     
     # Tab 2: Add/Edit Papers
@@ -175,14 +191,6 @@ def create_streamlit_app():
                       paper_to_edit["abstract"] if paper_to_edit else "")
             )
             
-            keywords = st.text_input(
-                "Keywords (comma-separated)",
-                value=",".join(paper_to_edit.get("keywords", [])) if paper_to_edit else ""
-            )
-            
-            impact = st.slider("Impact Score", 0, 100, 
-                             value=paper_to_edit["impact"] if paper_to_edit else 50)
-            
             citations = st.number_input("Citations", min_value=0,
                                       value=paper_to_edit["citations"] if paper_to_edit else 0)
             
@@ -201,9 +209,7 @@ def create_streamlit_app():
                         "authors": authors,
                         "year": year,
                         "abstract": abstract,
-                        "impact": impact,
                         "citations": citations,
-                        "keywords": [k.strip() for k in keywords.split(",") if k.strip()],
                         "dateAdded": datetime.now().strftime("%Y-%m-%d")
                     }
                     
@@ -237,9 +243,7 @@ def create_streamlit_app():
                             "authors": row["authors"],
                             "year": int(row["year"]),
                             "abstract": row["abstract"],
-                            "impact": int(row.get("impact", 50)),
                             "citations": int(row.get("citations", 0)),
-                            "keywords": [k.strip() for k in str(row.get("keywords", "")).split(",") if k.strip()],
                             "dateAdded": datetime.now().strftime("%Y-%m-%d")
                         })
                     save_papers_to_json(papers)
