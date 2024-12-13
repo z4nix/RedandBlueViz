@@ -29,10 +29,10 @@ def extract_arxiv_id(url):
     
     return id_part.strip()
 
-def get_paper_metadata(arxiv_url):
-    """Get paper metadata from arXiv"""
+def get_paper_metadata(_url):
+    """Get paper metadata from """
     try:
-        arxiv_id = extract_arxiv_id(arxiv_url)
+        _id = extract__id(_url)
         
         if not arxiv_id:
             raise ValueError("Could not extract valid arXiv ID")
@@ -87,10 +87,10 @@ def list_papers(category):
     
     return sorted(papers, key=lambda x: x['year'], reverse=True)
 
-st.set_page_config(page_title="arXiv Paper Organizer", layout="wide")
+st.set_page_config(page_title="Red/Blue Teaming Paper Collection", layout="wide")
 setup_directories()
 
-st.title("arXiv Paper Organizer")
+st.title("Red/Blue Teaming Paper Collection")
 
 # Create tabs with collection first
 collection_tab, add_tab = st.tabs(["📚 Collection", "📥 Add Paper"])
