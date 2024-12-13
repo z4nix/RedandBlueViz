@@ -132,7 +132,7 @@ with tab1:
                         st.success(f"Paper added to {category.replace('_', ' ')} collection!")
                         st.rerun()
 
-# Replace the display code in tab2 with this:
+
 with tab2:
     st.header("Paper Collection")
     
